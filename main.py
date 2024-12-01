@@ -131,6 +131,7 @@ def index():
     return "Success. Homework 5 Robert MacFarlane."
 
 
+# delete_or_change
 @app.route('/' + USERS, methods=['POST'])
 def create_business():
     '''create a business entity'''
@@ -164,6 +165,7 @@ def create_business():
     return new_business, 201
 
 
+# delete_or_change
 @app.route('/' + USERS + '/<int:business_id>', methods=['GET'])
 def get_business(business_id):
     business_key = client.key(USERS, business_id)
@@ -206,6 +208,7 @@ def get_businesses():
     return users
 
 
+# delete_or_change
 @app.route('/' + USERS + '/<int:business_id>', methods=['DELETE'])
 def delete_business(business_id):
     business_key = client.key(USERS, business_id)
