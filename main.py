@@ -16,8 +16,8 @@ app = Flask(__name__)
 
 client = datastore.Client()
 
-LODGINGS = "lodgings"
-BUSINESSES = "businesses"
+COURSES = "courses"
+USERS = "users"
 RESPONSE_400 = {"Error": "The request body is invalid"}
 RESPONSE_401 = {"Error": "Unauthorized"}
 RESPONSE_403 = {"Error": "You don't have permission on this resource"}
@@ -25,9 +25,9 @@ RESPONSE_404 = {"Error": "Not found"}
 
 
 # Update the values of the following 3 variables
-CLIENT_ID = 'x77cabDdJFj4KQaqmA1fUcGZbxJP1X3V'
-CLIENT_SECRET = ('oumQBCWCQY5HR9rucWxTOC_'
-                 + 'qaPHhVwSHdpL-JvDh65CsEoqGWa1fMkPqKuIEewaP')
+CLIENT_ID = 'vPC7Jv3JIrKKbqY1EmJgHgfYlKYWmZIH'
+CLIENT_SECRET = ('L_z1zRm6qB3uojVWm_tztzjbPkmqvOp'
+                 + 'NPwjOPZsBE0CHHAHyslfKZx86h5eUdoTW')
 DOMAIN = 'hw5-cs493-macfarlane.us.auth0.com'
 # For example
 # DOMAIN = '493-24-spring.us.auth0.com'
@@ -131,7 +131,7 @@ def index():
     return "Success. Homework 5 Robert MacFarlane."
 
 
-@app.route('/' + BUSINESSES, methods=['POST'])
+@app.route('/' + USERS, methods=['POST'])
 def create_business():
     '''create a business entity'''
     required_keys = {"name", "street_address", "city", "state",
@@ -146,7 +146,7 @@ def create_business():
     except AuthError:
         return {'Error': 'Invalid Authentication'}, 401
 
-    new_business = datastore.Entity(key=client.key(BUSINESSES))
+    new_business = datastore.Entity(key=client.key(USERS))
     new_business.update({
         'name': content['name'],
         'street_address': content['street_address'],
@@ -164,9 +164,9 @@ def create_business():
     return new_business, 201
 
 
-@app.route('/' + BUSINESSES + '/<int:business_id>', methods=['GET'])
+@app.route('/' + USERS + '/<int:business_id>', methods=['GET'])
 def get_business(business_id):
-    business_key = client.key(BUSINESSES, business_id)
+    business_key = client.key(USERS, business_id)
     business = client.get(key=business_key)
     try:
         payload = verify_jwt(request)
@@ -181,9 +181,9 @@ def get_business(business_id):
         return business, 200
 
 
-@app.route('/' + BUSINESSES, methods=['GET'])
+@app.route('/' + USERS, methods=['GET'])
 def get_businesses():
-    query = client.query(kind=BUSINESSES)
+    query = client.query(kind=USERS)
 
     try:
         payload = verify_jwt(request)
@@ -202,9 +202,9 @@ def get_businesses():
     return businesses
 
 
-@app.route('/' + BUSINESSES + '/<int:business_id>', methods=['DELETE'])
+@app.route('/' + USERS + '/<int:business_id>', methods=['DELETE'])
 def delete_business(business_id):
-    business_key = client.key(BUSINESSES, business_id)
+    business_key = client.key(USERS, business_id)
     business = client.get(key=business_key)
     try:
         payload = verify_jwt(request)
