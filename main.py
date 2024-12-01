@@ -1,7 +1,7 @@
 from flask import Flask, request, jsonify
 from google.cloud import datastore
 from google.cloud.datastore.query import PropertyFilter
-from google.cloud import storage
+# from google.cloud import storage
 import io
 
 import requests
@@ -229,9 +229,12 @@ def decode_jwt():
 # Request: JSON body with 2 properties with "username" and "password"
 #       of a user registered with this Auth0 domain
 # Response: JSON with the JWT as the value of the property id_token
-@app.route('/login', methods=['POST'])
+@app.route('/' + USERS + '/login', methods=['POST'])
 def login_user():
+    required_keys = {"username", "password"}
     content = request.get_json()
+    if set(content.keys()) != required_keys:
+        return RESPONSE_400, 400
     username = content["username"]
     password = content["password"]
     body = {'grant_type': 'password',
@@ -243,7 +246,11 @@ def login_user():
     headers = {'content-type': 'application/json'}
     url = 'https://' + DOMAIN + '/oauth/token'
     r = requests.post(url, json=body, headers=headers)
-    return r.text, 200, {'Content-Type': 'application/json'}
+    if r.status_code != 200:
+        return RESPONSE_401, 401
+    response = r.json()
+    token = response["id_token"]
+    return {"token": token}, 200
 
 
 if __name__ == '__main__':
