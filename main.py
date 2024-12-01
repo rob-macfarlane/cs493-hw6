@@ -217,6 +217,7 @@ def delete_business(business_id):
         client.delete(key=business_key)
         return ('', 204)
 
+
 # Decode the JWT supplied in the Authorization header
 @app.route('/decode', methods=['GET'])
 def decode_jwt():
