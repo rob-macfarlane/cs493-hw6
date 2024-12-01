@@ -181,25 +181,29 @@ def get_business(business_id):
         return business, 200
 
 
+def get_role(sub):
+    query = client.query(kind=USERS)
+    query = query.add_filter(filter=PropertyFilter('sub', '=', sub))
+    users = list(query.fetch())
+
+    return users[0]['role']
+
+
 @app.route('/' + USERS, methods=['GET'])
 def get_businesses():
     query = client.query(kind=USERS)
-
     try:
         payload = verify_jwt(request)
         sub = payload["sub"]
-        query = query.add_filter(filter=PropertyFilter('owner_id', '=', sub))
-        businesses = list(query.fetch())
-        for business in businesses:
-            business['id'] = business.key.id
-            business['self'] = request.base_url + '/' + str(business['id'])
+        role = get_role(sub)
+        if role != 'admin':
+            return RESPONSE_403, 403
+        users = list(query.fetch())
+        for user in users:
+            user['id'] = user.key.id
     except AuthError:
-        businesses = list(query.fetch())
-        for business in businesses:
-            business['id'] = business.key.id
-            del business['inspection_score']
-            business['self'] = request.base_url + '/' + str(business['id'])
-    return businesses
+        return RESPONSE_401, 401
+    return users
 
 
 @app.route('/' + USERS + '/<int:business_id>', methods=['DELETE'])
