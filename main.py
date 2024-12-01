@@ -18,6 +18,11 @@ client = datastore.Client()
 
 LODGINGS = "lodgings"
 BUSINESSES = "businesses"
+RESPONSE_400 = {"Error": "The request body is invalid"}
+RESPONSE_401 = {"Error": "Unauthorized"}
+RESPONSE_403 = {"Error": "You don't have permission on this resource"}
+RESPONSE_404 = {"Error": "Not found"}
+
 
 # Update the values of the following 3 variables
 CLIENT_ID = 'x77cabDdJFj4KQaqmA1fUcGZbxJP1X3V'
