@@ -1,7 +1,7 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_file
 from google.cloud import datastore
 from google.cloud.datastore.query import PropertyFilter
-# from google.cloud import storage
+from google.cloud import storage
 import io
 
 import requests
@@ -16,6 +16,7 @@ app = Flask(__name__)
 
 client = datastore.Client()
 
+AVATAR_BUCKET = 'cs493-hw6_macfarlane'
 COURSES = "courses"
 USERS = "users"
 RESPONSE_400 = {"Error": "The request body is invalid"}
@@ -165,30 +166,30 @@ def create_business():
     return new_business, 201
 
 
-# delete_or_change
-@app.route('/' + USERS + '/<int:business_id>', methods=['GET'])
-def get_business(business_id):
-    business_key = client.key(USERS, business_id)
-    business = client.get(key=business_key)
+@app.route('/' + USERS + '/<int:user_id>', methods=['GET'])
+def get_business(user_id):
+    user_key = client.key(USERS, user_id)
+    user = client.get(key=user_key)
     try:
         payload = verify_jwt(request)
         sub = payload["sub"]
+        role = get_user(sub)
     except AuthError:
-        return {'Error': 'Invalid Authentication'}, 401
-    if business is None or business['owner_id'] != sub:
-        return {"Error": "No business with this business_id exists"}, 403
+        return RESPONSE_401, 401
+    if user is None or (user['sub'] != sub and role != 'admin'):
+        return RESPONSE_403, 403
     else:
-        business['id'] = business.key.id
-        business['self'] = request.base_url
-        return business, 200
+        user['id'] = user.key.id
+        return user, 200
 
 
-def get_role(sub):
+def get_user(sub):
     query = client.query(kind=USERS)
     query = query.add_filter(filter=PropertyFilter('sub', '=', sub))
     users = list(query.fetch())
-
-    return users[0]['role']
+    for user in users:
+        user['id'] = user.key.id
+    return users[0]
 
 
 @app.route('/' + USERS, methods=['GET'])
@@ -197,7 +198,7 @@ def get_businesses():
     try:
         payload = verify_jwt(request)
         sub = payload["sub"]
-        role = get_role(sub)
+        role = get_user(sub)['role']
         if role != 'admin':
             return RESPONSE_403, 403
         users = list(query.fetch())
@@ -258,6 +259,64 @@ def login_user():
     response = r.json()
     token = response["id_token"]
     return {"token": token}, 200
+
+
+@app.route('/' + USERS + '/<int:user_id>/avatar', methods=['POST'])
+def store_image(user_id):
+    if 'file' not in request.files:
+        return RESPONSE_400, 400
+
+    user_key = client.key(USERS, user_id)
+    user_based_on_jwt = client.get(key=user_key)
+    try:
+        payload = verify_jwt(request)
+        sub = payload["sub"]
+        user_based_on_jwt = get_user(sub)
+        if user_based_on_jwt['id'] != user_id:
+            return RESPONSE_403, 403
+    except AuthError:
+        return RESPONSE_401, 401
+    # Set file_obj to the file sent in the request
+    file_obj = request.files['file']
+    # Create a storage client
+    storage_client = storage.Client()
+    # Get a handle on the bucket
+    bucket = storage_client.get_bucket(AVATAR_BUCKET)
+    # Create a blob object for the bucket with the name of the file
+    blob = bucket.blob(file_obj.filename)
+    # Position the file_obj to its beginning
+    file_obj.seek(0)
+    # Upload the file into Cloud Storage
+    blob.upload_from_file(file_obj)
+    url = request.base_url + "/" + str(file_obj.filename)
+    return ({'avatar_url': url}, 200)
+
+
+@app.route('/images/<file_name>', methods=['GET'])
+def get_image(file_name):
+    storage_client = storage.Client()
+    bucket = storage_client.get_bucket(AVATAR_BUCKET)
+    # Create a blob with the given file name
+    blob = bucket.blob(file_name)
+    # Create a file object in memory using Python io package
+    file_obj = io.BytesIO()
+    # Download the file from Cloud Storage to the file_obj variable
+    blob.download_to_file(file_obj)
+    # Position the file_obj to its beginning
+    file_obj.seek(0)
+    # Send the object as a file in the response with the correct MIME type
+    # and file name
+    return send_file(file_obj, mimetype='image/x-png', download_name=file_name)
+
+
+@app.route('/images/<file_name>', methods=['DELETE'])
+def delete_image(file_name):
+    storage_client = storage.Client()
+    bucket = storage_client.get_bucket(AVATAR_BUCKET)
+    blob = bucket.blob(file_name)
+    # Delete the file from Cloud Storage
+    blob.delete()
+    return '', 204
 
 
 if __name__ == '__main__':
