@@ -292,7 +292,7 @@ def store_image(user_id):
     return ({'avatar_url': url}, 200)
 
 
-@app.route('/images/<file_name>', methods=['GET'])
+@app.route('/' + USERS + '/<int:user_id>/avatar', methods=['GET'])
 def get_image(file_name):
     storage_client = storage.Client()
     bucket = storage_client.get_bucket(AVATAR_BUCKET)
