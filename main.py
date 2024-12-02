@@ -134,8 +134,8 @@ def index():
 
 # delete_or_change
 @app.route('/' + USERS, methods=['POST'])
-def create_business():
-    '''create a business entity'''
+def create_user():
+    '''create a user entity'''
     required_keys = {"name", "street_address", "city", "state",
                      "zip_code", "inspection_score"}
     content = request.get_json()
@@ -167,14 +167,14 @@ def create_business():
 
 
 @app.route('/' + USERS + '/<int:user_id>', methods=['GET'])
-def get_business(user_id):
+def get_user(user_id):
     user_key = client.key(USERS, user_id)
     user = client.get(key=user_key)
     keys = {"avatar_url", "courses", "id", "role", "sub"}
     try:
         payload = verify_jwt(request)
         sub = payload["sub"]
-        role = get_user(sub)
+        role = get_user_with_jwt(sub)
     except AuthError:
         return RESPONSE_401, 401
     if user is None or (user['sub'] != sub and role != 'admin'):
@@ -189,7 +189,7 @@ def get_business(user_id):
         return user, 200
 
 
-def get_user(sub):
+def get_user_with_jwt(sub):
     query = client.query(kind=USERS)
     query = query.add_filter(filter=PropertyFilter('sub', '=', sub))
     users = list(query.fetch())
@@ -199,12 +199,12 @@ def get_user(sub):
 
 
 @app.route('/' + USERS, methods=['GET'])
-def get_businesses():
+def get_users():
     query = client.query(kind=USERS)
     try:
         payload = verify_jwt(request)
         sub = payload["sub"]
-        role = get_user(sub)['role']
+        role = get_user_with_jwt(sub)['role']
         if role != 'admin':
             return RESPONSE_403, 403
         users = list(query.fetch())
@@ -217,7 +217,7 @@ def get_businesses():
 
 # delete_or_change
 @app.route('/' + USERS + '/<int:business_id>', methods=['DELETE'])
-def delete_business(business_id):
+def delete_user(business_id):
     business_key = client.key(USERS, business_id)
     business = client.get(key=business_key)
     try:
@@ -268,7 +268,7 @@ def login_user():
 
 
 @app.route('/' + USERS + '/<int:user_id>/avatar', methods=['POST'])
-def store_image(user_id):
+def add_avatar(user_id):
     if 'file' not in request.files:
         return RESPONSE_400, 400
 
@@ -277,7 +277,7 @@ def store_image(user_id):
     try:
         payload = verify_jwt(request)
         sub = payload["sub"]
-        user_based_on_jwt = get_user(sub)
+        user_based_on_jwt = get_user_with_jwt(sub)
         if user_based_on_jwt['id'] != user_id:
             return RESPONSE_403, 403
         file_obj = request.files['file']
@@ -298,12 +298,12 @@ def store_image(user_id):
 
 
 @app.route('/' + USERS + '/<int:user_id>/avatar', methods=['GET'])
-def get_image(user_id):
+def get_avatar(user_id):
 
     try:
         payload = verify_jwt(request)
         sub = payload["sub"]
-        user_based_on_jwt = get_user(sub)
+        user_based_on_jwt = get_user_with_jwt(sub)
         if user_based_on_jwt['id'] != user_id:
             return RESPONSE_403, 403
         user_key = client.key(USERS, user_id)
@@ -324,11 +324,11 @@ def get_image(user_id):
 
 
 @app.route('/' + USERS + '/<int:user_id>/avatar', methods=['DELETE'])
-def delete_image(user_id):
+def delete_avatar(user_id):
     try:
         payload = verify_jwt(request)
         sub = payload["sub"]
-        user_based_on_jwt = get_user(sub)
+        user_based_on_jwt = get_user_with_jwt(sub)
         if user_based_on_jwt['id'] != user_id:
             return RESPONSE_403, 403
         user_key = client.key(USERS, user_id)
@@ -349,6 +349,11 @@ def delete_image(user_id):
         return '', 204
     except AuthError:
         return RESPONSE_401, 401
+
+
+@app.route('/' + COURSES, methods=['GET'])
+def create_course():
+    pass
 
 
 if __name__ == '__main__':
