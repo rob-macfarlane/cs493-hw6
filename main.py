@@ -267,33 +267,34 @@ def store_image(user_id):
         return RESPONSE_400, 400
 
     user_key = client.key(USERS, user_id)
-    user_based_on_jwt = client.get(key=user_key)
+    user = client.get(key=user_key)
     try:
         payload = verify_jwt(request)
         sub = payload["sub"]
         user_based_on_jwt = get_user(sub)
         if user_based_on_jwt['id'] != user_id:
             return RESPONSE_403, 403
+        file_obj = request.files['file']
+        storage_client = storage.Client()
+        bucket = storage_client.get_bucket(AVATAR_BUCKET)
+        blob = bucket.blob(file_obj.filename)
+        file_obj.seek(0)
+        blob.upload_from_file(file_obj)
+        user.update({
+            'avatar_file': str(file_obj.filename)
+        })
+        client.put(user)
+        url = request.base_url + "/" + str(file_obj.filename)
+        return ({'avatar_url': url}, 200)
     except AuthError:
         return RESPONSE_401, 401
-    # Set file_obj to the file sent in the request
-    file_obj = request.files['file']
-    # Create a storage client
-    storage_client = storage.Client()
-    # Get a handle on the bucket
-    bucket = storage_client.get_bucket(AVATAR_BUCKET)
-    # Create a blob object for the bucket with the name of the file
-    blob = bucket.blob(file_obj.filename)
-    # Position the file_obj to its beginning
-    file_obj.seek(0)
-    # Upload the file into Cloud Storage
-    blob.upload_from_file(file_obj)
-    url = request.base_url + "/" + str(file_obj.filename)
-    return ({'avatar_url': url}, 200)
 
 
 @app.route('/' + USERS + '/<int:user_id>/avatar', methods=['GET'])
-def get_image(file_name):
+def get_image(user_id):
+    user_key = client.key(USERS, user_id)
+    user = client.get(key=user_key)
+    file_name = user['avatar_file']
     storage_client = storage.Client()
     bucket = storage_client.get_bucket(AVATAR_BUCKET)
     # Create a blob with the given file name
