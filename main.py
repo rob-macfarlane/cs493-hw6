@@ -292,22 +292,28 @@ def store_image(user_id):
 
 @app.route('/' + USERS + '/<int:user_id>/avatar', methods=['GET'])
 def get_image(user_id):
-    user_key = client.key(USERS, user_id)
-    user = client.get(key=user_key)
-    file_name = user['avatar_file']
-    storage_client = storage.Client()
-    bucket = storage_client.get_bucket(AVATAR_BUCKET)
-    # Create a blob with the given file name
-    blob = bucket.blob(file_name)
-    # Create a file object in memory using Python io package
-    file_obj = io.BytesIO()
-    # Download the file from Cloud Storage to the file_obj variable
-    blob.download_to_file(file_obj)
-    # Position the file_obj to its beginning
-    file_obj.seek(0)
-    # Send the object as a file in the response with the correct MIME type
-    # and file name
-    return send_file(file_obj, mimetype='image/x-png', download_name=file_name)
+
+    try:
+        payload = verify_jwt(request)
+        sub = payload["sub"]
+        user_based_on_jwt = get_user(sub)
+        if user_based_on_jwt['id'] != user_id:
+            return RESPONSE_403, 403
+        user_key = client.key(USERS, user_id)
+        user = client.get(key=user_key)
+        if 'avatar_file' not in user.keys():
+            return RESPONSE_404, 404
+        file_name = user['avatar_file']
+        storage_client = storage.Client()
+        bucket = storage_client.get_bucket(AVATAR_BUCKET)
+        blob = bucket.blob(file_name)
+        file_obj = io.BytesIO()
+        blob.download_to_file(file_obj)
+        file_obj.seek(0)
+        return send_file(file_obj, mimetype='image/x-png',
+                         download_name=file_name)
+    except AuthError:
+        return RESPONSE_401, 401
 
 
 @app.route('/images/<file_name>', methods=['DELETE'])
