@@ -129,41 +129,7 @@ def verify_jwt(request):
 
 @app.route('/')
 def index():
-    return "Success. Homework 5 Robert MacFarlane."
-
-
-# delete_or_change
-@app.route('/' + USERS, methods=['POST'])
-def create_user():
-    '''create a user entity'''
-    required_keys = {"name", "street_address", "city", "state",
-                     "zip_code", "inspection_score"}
-    content = request.get_json()
-    if set(content.keys()) != required_keys:
-        return {'Error': 'The request body is missing at least one of' +
-                ' the required attributes'}, 400
-    try:
-        payload = verify_jwt(request)
-        sub = payload["sub"]
-    except AuthError:
-        return {'Error': 'Invalid Authentication'}, 401
-
-    new_business = datastore.Entity(key=client.key(USERS))
-    new_business.update({
-        'name': content['name'],
-        'street_address': content['street_address'],
-        'city': content['city'],
-        'state': content['state'],
-        'zip_code': int(content['zip_code']),
-        'inspection_score': int(content['inspection_score']),
-        'owner_id': sub
-    })
-    client.put(new_business)
-    new_business['id'] = new_business.key.id
-    new_business['self'] = (str(request.base_url)
-                            + "/"
-                            + str(new_business['id']))
-    return new_business, 201
+    return "Success. CS493 Portfolio Project - Robert MacFarlane."
 
 
 @app.route('/' + USERS + '/<int:user_id>', methods=['GET'])
@@ -213,23 +179,6 @@ def get_users():
     except AuthError:
         return RESPONSE_401, 401
     return users
-
-
-# delete_or_change
-@app.route('/' + USERS + '/<int:business_id>', methods=['DELETE'])
-def delete_user(business_id):
-    business_key = client.key(USERS, business_id)
-    business = client.get(key=business_key)
-    try:
-        payload = verify_jwt(request)
-        sub = payload["sub"]
-    except AuthError:
-        return {'Error': 'Invalid Authentication'}, 401
-    if business is None or sub != business['owner_id']:
-        return {'Error': 'No business with this business_id exists'}, 403
-    else:
-        client.delete(key=business_key)
-        return ('', 204)
 
 
 # Decode the JWT supplied in the Authorization header
@@ -351,9 +300,46 @@ def delete_avatar(user_id):
         return RESPONSE_401, 401
 
 
-@app.route('/' + COURSES, methods=['GET'])
+def get_role(id):
+    user_key = client.key(USERS, id)
+    user = client.get(key=user_key)
+    return user['role']
+
+
+@app.route('/' + COURSES, methods=['POST'])
 def create_course():
-    pass
+    '''create a user entity'''
+    required_keys = {"subject", "number", "title", "term", "instructor_id"}
+    content = request.get_json()
+
+    try:
+        payload = verify_jwt(request)
+        sub = payload["sub"]
+        role = get_user_with_jwt(sub)['role']
+        if role != 'admin':
+            return RESPONSE_403, 403
+    except AuthError:
+        return RESPONSE_401, 401
+
+    if set(content.keys()) != required_keys:
+        return RESPONSE_400, 400
+
+    instructor_id = content['instructor_id']
+    role = get_role(instructor_id)
+    if role != 'instructor':
+        return RESPONSE_400, 400
+    new_course = datastore.Entity(key=client.key(COURSES))
+    new_course.update({
+        'subject': content['subject'],
+        'number': int(content['number']),
+        'title': content['title'],
+        'term': content['term'],
+        'instructor_id': int(content['instructor_id'])
+    })
+    client.put(new_course)
+    new_course['id'] = new_course.key.id
+    new_course['self'] = (str(request.base_url) + "/" + str(new_course['id']))
+    return new_course, 201
 
 
 if __name__ == '__main__':
