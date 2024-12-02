@@ -170,6 +170,7 @@ def create_business():
 def get_business(user_id):
     user_key = client.key(USERS, user_id)
     user = client.get(key=user_key)
+    keys = {"avatar_url", "courses", "id", "role", "sub"}
     try:
         payload = verify_jwt(request)
         sub = payload["sub"]
@@ -180,6 +181,11 @@ def get_business(user_id):
         return RESPONSE_403, 403
     else:
         user['id'] = user.key.id
+        user = {
+            key: value
+            for key, value in user.items()
+            if key in keys and value
+            }
         return user, 200
 
 
@@ -280,11 +286,12 @@ def store_image(user_id):
         blob = bucket.blob(file_obj.filename)
         file_obj.seek(0)
         blob.upload_from_file(file_obj)
+        url = request.base_url
         user.update({
-            'avatar_file': str(file_obj.filename)
+            'avatar_file': str(file_obj.filename),
+            'avatar_url': url
         })
         client.put(user)
-        url = request.base_url + "/" + str(file_obj.filename)
         return ({'avatar_url': url}, 200)
     except AuthError:
         return RESPONSE_401, 401
@@ -335,7 +342,8 @@ def delete_image(user_id):
         # Delete the file from Cloud Storage
         blob.delete()
         user.update({
-            'avatar_file': ""
+            'avatar_file': "",
+            'avatar_url': ""
         })
         client.put(user)
         return '', 204
