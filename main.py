@@ -348,13 +348,21 @@ def get_all_courses():
     y = int(request.args.get('offset', 0))
 
     query = client.query(kind=COURSES)
+    query.order = ['subject']
     course_iterator = query.fetch(limit=x, offset=y)
     pages = course_iterator.pages
     courses = list(next(pages))
 
     for course in courses:
         course['id'] = course.key.id
-    return courses
+        course['self'] = request.base_url + "/" + str(course.key.id)
+    url = request.base_url + "?limit=3&offset=" + str(y+x)
+    res = {
+        "courses": courses,
+        "next": url
+    }
+
+    return res
 
 
 if __name__ == '__main__':
