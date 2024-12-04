@@ -342,5 +342,20 @@ def create_course():
     return new_course, 201
 
 
+@app.route('/' + COURSES, methods=['GET'])
+def get_all_courses():
+    x = int(request.args.get('limit', 3))
+    y = int(request.args.get('offset', 0))
+
+    query = client.query(kind=COURSES)
+    course_iterator = query.fetch(limit=x, offset=y)
+    pages = course_iterator.pages
+    courses = list(next(pages))
+
+    for course in courses:
+        course['id'] = course.key.id
+    return courses
+
+
 if __name__ == '__main__':
     app.run(host='127.0.0.1', port=8080, debug=True)
