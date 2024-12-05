@@ -365,5 +365,19 @@ def get_all_courses():
     return res
 
 
+@app.route('/' + COURSES + '/<int:course_id>')
+def get_course(course_id):
+    course_key = client.key(COURSES, course_id)
+    course = client.get(key=course_key)
+
+    if course is None:
+        return RESPONSE_404, 404
+
+    course['id'] = course_id
+    course['self'] = request.base_url
+
+    return course, 200
+
+
 if __name__ == '__main__':
     app.run(host='127.0.0.1', port=8080, debug=True)
