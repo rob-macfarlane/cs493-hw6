@@ -308,7 +308,7 @@ def get_role(id):
 
 @app.route('/' + COURSES, methods=['POST'])
 def create_course():
-    '''create a user entity'''
+    '''create a course entity'''
     required_keys = {"subject", "number", "title", "term", "instructor_id"}
     content = request.get_json()
 
@@ -365,7 +365,7 @@ def get_all_courses():
     return res
 
 
-@app.route('/' + COURSES + '/<int:course_id>')
+@app.route('/' + COURSES + '/<int:course_id>', methods=["GET"])
 def get_course(course_id):
     course_key = client.key(COURSES, course_id)
     course = client.get(key=course_key)
@@ -377,6 +377,44 @@ def get_course(course_id):
     course['self'] = request.base_url
 
     return course, 200
+
+
+@app.route('/' + COURSES + '/<int:course_id>', methods=["PATCH"])
+def update_course(course_id):
+
+    try:
+        payload = verify_jwt(request)
+        sub = payload["sub"]
+        role = get_user_with_jwt(sub)['role']
+        if role != 'admin':
+            return RESPONSE_403, 403
+        course_key = client.key(COURSES, course_id)
+        course = client.get(key=course_key)
+        if course is None:
+            return RESPONSE_403, 403
+        content = request.get_json()
+        user_query = client.query(kind=USERS)
+        users = list(user_query.fetch())
+        instructor_ids = []
+        for user in users:
+            if user['role'] == 'instructor':
+                instructor_ids.append(user.key.id)
+        instructor_ids = set(instructor_ids)
+
+        content_keys = content.keys()
+        if ('instructor_id' in content_keys):
+            if content['instructor_id'] not in instructor_ids:
+                RESPONSE_400, 400
+        for key in content_keys:
+            course[key] = content[key]
+
+        course['id'] = course_id
+        course['self'] = request.base_url
+
+        return course, 200
+
+    except AuthError:
+        return RESPONSE_401, 401
 
 
 if __name__ == '__main__':
