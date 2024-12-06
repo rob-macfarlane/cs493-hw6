@@ -23,7 +23,7 @@ RESPONSE_400 = {"Error": "The request body is invalid"}
 RESPONSE_401 = {"Error": "Unauthorized"}
 RESPONSE_403 = {"Error": "You don't have permission on this resource"}
 RESPONSE_404 = {"Error": "Not found"}
-
+RESPONSE_409 = {"Error": "Enrollment data is invalid"}
 
 # Update the values of the following 3 variables
 CLIENT_ID = 'vPC7Jv3JIrKKbqY1EmJgHgfYlKYWmZIH'
@@ -303,7 +303,10 @@ def delete_avatar(user_id):
 def get_role(id):
     user_key = client.key(USERS, id)
     user = client.get(key=user_key)
-    return user['role']
+    if user:
+        return user['role']
+    else:
+        return None
 
 
 @app.route('/' + COURSES, methods=['POST'])
@@ -408,6 +411,7 @@ def update_course(course_id):
         for key in content_keys:
             course[key] = content[key]
 
+        client.put(course)
         course['id'] = course_id
         course['self'] = request.base_url
 
@@ -430,7 +434,66 @@ def delete_course(course_id):
         if course is None:
             return RESPONSE_403, 403
         client.delete(course_key)
-        return {}, 204
+        return '', 204
+    except AuthError:
+        return RESPONSE_401, 401
+
+
+def is_content_valid(content):
+    student_ids_to_add = set(content['add'])
+    student_ids_to_remove = set(content['remove'])
+    for student_id in student_ids_to_add:
+        if student_id in student_ids_to_remove:
+            return False
+
+    all_student_ids = student_ids_to_add.union(student_ids_to_remove)
+    for student_id in all_student_ids:
+        role = get_role(student_id)
+        if role is None or role != "student":
+            return False
+
+    return True
+
+
+@app.route('/' + COURSES + '/<int:course_id>/students', methods=["PATCH"])
+def update_enrollment(course_id):
+    try:
+        payload = verify_jwt(request)
+        sub = payload["sub"]
+        user = get_user_with_jwt(sub)
+        role = user['role']
+        if role != 'admin' or role != 'instructor':
+            return RESPONSE_403, 403
+
+        user_id = user['id']
+        course_key = client.key(COURSES, course_id)
+        course = client.get(key=course_key)
+        if course is None:
+            return RESPONSE_403, 403
+        if course['instructor_id'] != user_id:
+            return RESPONSE_403, 403
+
+        content = request.get_json()
+        if is_content_valid(content) is False:
+            return RESPONSE_409, 409
+        student_ids_to_add = set(content['add'])
+        student_ids_to_remove = set(content['remove'])
+
+        for student_id in student_ids_to_add:
+            student_key = client.query(kind=USERS, key=student_id)
+            student = client.get(key=student_key)
+            courses = student['courses']
+            if course['id'] not in courses:
+                courses.append(course['id'])
+            client.put(student)
+        for student_id in student_ids_to_remove:
+            student_key = client.query(kind=USERS, key=student_id)
+            student = client.get(key=student_key)
+            courses = student['courses']
+            if course['id'] in courses:
+                courses.remove(course['id'])
+            client.put(student)
+        return '', 200
     except AuthError:
         return RESPONSE_401, 401
 
