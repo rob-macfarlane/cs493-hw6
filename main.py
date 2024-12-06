@@ -430,6 +430,12 @@ def update_course(course_id):
         return RESPONSE_401, 401
 
 
+def get_students_and_instructors():
+    query = client.query(kind=USERS)
+    res = list(query.fetch())
+    return res
+
+
 @app.route('/' + COURSES + '/<int:course_id>', methods=["DELETE"])
 def delete_course(course_id):
     try:
@@ -442,6 +448,14 @@ def delete_course(course_id):
         course = client.get(key=course_key)
         if course is None:
             return RESPONSE_403, 403
+        instructors_and_students = get_students_and_instructors()
+        for user in instructors_and_students:
+            user_courses = user.get('courses', [])
+            if course_id in user_courses:
+                user_courses.remove(course_id)
+                user['courses'] = user_courses
+                client.put(user)
+
         client.delete(course_key)
         return '', 204
     except AuthError:
