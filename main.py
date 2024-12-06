@@ -462,15 +462,15 @@ def update_enrollment(course_id):
         sub = payload["sub"]
         user = get_user_with_jwt(sub)
         role = user['role']
-        if role != 'admin' or role != 'instructor':
+        if role != 'admin' and role != 'instructor':
             return RESPONSE_403, 403
 
-        user_id = user['id']
+        user_id = user.key.id
         course_key = client.key(COURSES, course_id)
         course = client.get(key=course_key)
         if course is None:
             return RESPONSE_403, 403
-        if course['instructor_id'] != user_id:
+        if role != "admin" and course['instructor_id'] != user_id:
             return RESPONSE_403, 403
 
         content = request.get_json()
@@ -478,22 +478,59 @@ def update_enrollment(course_id):
             return RESPONSE_409, 409
         student_ids_to_add = set(content['add'])
         student_ids_to_remove = set(content['remove'])
-
         for student_id in student_ids_to_add:
-            student_key = client.query(kind=USERS, key=student_id)
+            student_key = client.key(USERS, student_id)
             student = client.get(key=student_key)
-            courses = student['courses']
-            if course['id'] not in courses:
-                courses.append(course['id'])
+            courses = student.get('courses', [])
+            if course_id not in courses:
+                courses.append(course_id)
+            student['courses'] = courses
             client.put(student)
         for student_id in student_ids_to_remove:
-            student_key = client.query(kind=USERS, key=student_id)
+            student_key = client.key(USERS, student_id)
             student = client.get(key=student_key)
-            courses = student['courses']
-            if course['id'] in courses:
-                courses.remove(course['id'])
+            courses = student.get('courses', [])
+            if course_id in courses:
+                courses.remove(course_id)
+            student['courses'] = courses
             client.put(student)
         return '', 200
+    except AuthError:
+        return RESPONSE_401, 401
+
+
+def get_students():
+    query = client.query(kind=USERS)
+    query.add_filter(filter=PropertyFilter("role", "=", "student"))
+    students = list(query.fetch())
+    return students
+
+
+@app.route('/' + COURSES + '/<int:course_id>/students', methods=["GET"])
+def get_enrollment(course_id):
+    try:
+        payload = verify_jwt(request)
+        sub = payload["sub"]
+        user = get_user_with_jwt(sub)
+        role = user['role']
+        if role != 'admin' and role != 'instructor':
+            return RESPONSE_403, 403
+
+        user_id = user['id']
+        course_key = client.key(COURSES, course_id)
+        course = client.get(key=course_key)
+        if course is None:
+            return RESPONSE_403, 403
+        if role != "admin" and course.get('instructor_id') != user_id:
+            return RESPONSE_403, 403
+
+        students = get_students()
+
+        enrolled = []
+        for student in students:
+            if course_id in student.get('courses', []):
+                enrolled.append(student.key.id)
+        return enrolled, 200
     except AuthError:
         return RESPONSE_401, 401
 
