@@ -417,5 +417,23 @@ def update_course(course_id):
         return RESPONSE_401, 401
 
 
+@app.route('/' + COURSES + '/<int:course_id>', methods=["DELETE"])
+def delete_course(course_id):
+    try:
+        payload = verify_jwt(request)
+        sub = payload["sub"]
+        role = get_user_with_jwt(sub)['role']
+        if role != 'admin':
+            return RESPONSE_403, 403
+        course_key = client.key(COURSES, course_id)
+        course = client.get(key=course_key)
+        if course is None:
+            return RESPONSE_403, 403
+        client.delete(course_key)
+        return {}, 204
+    except AuthError:
+        return RESPONSE_401, 401
+
+
 if __name__ == '__main__':
     app.run(host='127.0.0.1', port=8080, debug=True)
