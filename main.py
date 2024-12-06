@@ -391,6 +391,7 @@ def get_course(course_id):
     return course, 200
 
 
+# 10
 @app.route('/' + COURSES + '/<int:course_id>', methods=["PATCH"])
 def update_course(course_id):
 
@@ -416,7 +417,7 @@ def update_course(course_id):
         content_keys = content.keys()
         if ('instructor_id' in content_keys):
             if content['instructor_id'] not in instructor_ids:
-                RESPONSE_400, 400
+                return RESPONSE_400, 400
         for key in content_keys:
             course[key] = content[key]
 
@@ -436,6 +437,7 @@ def get_students_and_instructors():
     return res
 
 
+# 11
 @app.route('/' + COURSES + '/<int:course_id>', methods=["DELETE"])
 def delete_course(course_id):
     try:
@@ -478,6 +480,7 @@ def is_content_valid(content):
     return True
 
 
+# 12
 @app.route('/' + COURSES + '/<int:course_id>/students', methods=["PATCH"])
 def update_enrollment(course_id):
     try:
@@ -529,6 +532,7 @@ def get_students():
     return students
 
 
+# 13
 @app.route('/' + COURSES + '/<int:course_id>/students', methods=["GET"])
 def get_enrollment(course_id):
     try:
