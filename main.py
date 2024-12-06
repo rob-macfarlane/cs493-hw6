@@ -167,6 +167,7 @@ def get_user_with_jwt(sub):
 @app.route('/' + USERS, methods=['GET'])
 def get_users():
     query = client.query(kind=USERS)
+    required_keys = {"id", "role", "sub"}
     try:
         payload = verify_jwt(request)
         sub = payload["sub"]
@@ -174,11 +175,17 @@ def get_users():
         if role != 'admin':
             return RESPONSE_403, 403
         users = list(query.fetch())
+        user_res = []
         for user in users:
             user['id'] = user.key.id
+            user = {
+                key: value
+                for key, value in user.items()
+                if key in required_keys}
+            user_res.append(user)
     except AuthError:
         return RESPONSE_401, 401
-    return users
+    return user_res
 
 
 # Decode the JWT supplied in the Authorization header
