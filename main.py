@@ -152,6 +152,8 @@ def get_user(user_id):
             for key, value in user.items()
             if key in keys and value
             }
+        if user['role'] == "instructor" or user['role'] == "student":
+            user['courses'] = user.get('courses', [])
         return user, 200
 
 
